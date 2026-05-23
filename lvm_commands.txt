@@ -1,0 +1,15 @@
+LVM Commands
+
+fdisk -l  (Show disk list)
+pvs (show physical volume)
+vgs (show volume group)
+lvs (show logical volume)
+
+pvcreate /dev/sdb   ( create physical volume from disk)
+
+vgextend ubuntu-vg /dev/sdb   ( extend volume group)
+
+lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv  ( Extend logical volume used 100% Free volume group size)
+sudo lvextend -L +5G /dev/mapper/ubuntu--vg-ubuntu--lv   ( This extend only 5Gb from volume group)
+
+resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv  ( map file)

@@ -1,0 +1,133 @@
+Here are the commands used in the video to set up a single-node k3s cluster, organized by step:
+
+1. Preparation & Essentials
+
+    Update packages and install tools: sudo apt update && sudo apt install curl vim git (0:40)
+    Disable swap (Kubernetes requirement): sudo swapoff -a (1:10)
+    (Note: The video also mentions commenting out swap entries in /etc/fstab to ensure it stays disabled on reboot) (1:25)
+
+2. Install k3s
+
+    Install k3s: curl -sfL https://get.k3s.io | sh -
+    Check status: sudo systemctl status k3s (2:16)
+
+3. Configure kubectl
+
+    Set KUBECONFIG: export KUBECONFIG=/etc/rancher/k3s/k3s.yaml 
+    Verify nodes: sudo kubectl get nodes (2:56)
+
+4. Deploying a Pod
+
+    Create the pod manifest (using an editor like vi or nano): vi nginx-pod.yml (4:02)
+    Apply the manifest: sudo kubectl apply -f nginx-pod.yml (4:23)
+    Verify pod status: sudo kubectl get pods (4:42)
+
+5. Exposing via Service
+
+    Label the pod: sudo kubectl label pod hello-nginx app=nginx (7:40)
+    Create service manifest: vi nginx-service.yml (6:20)
+    Apply the service: sudo kubectl apply -f nginx-service.yml (8:03)
+    Test the service: curl http://:30080 (8:21)
+
+6. Scaling with Deployments
+
+    Create deployment manifest: vi nginx-deploy.yml (9:50)
+    Apply deployment: sudo kubectl apply -f nginx-deploy.yml (11:35)
+    Verify deployment status: sudo kubectl get deployment,pods (12:04)
+
+7. Rolling Updates
+
+    Edit the deployment to update the image: vi nginx-deploy.yml (13:05)
+    Apply changes: sudo kubectl apply -f nginx-deploy.yml (13:43)
+    Watch rollout status: sudo kubectl rollout status deployment/nginx-deploy (14:02)
+
+
+
+Based on the tutorial, here are the YAML file configurations used to deploy your applications. You can save these into files and apply them using kubectl apply -f .yml.
+1. Nginx Pod Configuration (nginx-pod.yml)
+
+This manifest deploys a single Nginx pod.
+yaml
+apiVersion: v1
+kind: Pod
+metadata:
+name: hello-nginx
+labels:
+app: nginx
+spec:
+containers:
+
+    name: nginx image: nginx ports:
+        containerPort: 80
+
+(4:02)
+2. Service Configuration (nginx-service.yml)
+
+This manifest exposes the Nginx pod on a NodePort so it can be accessed externally via the node's IP.
+yaml
+apiVersion: v1
+kind: Service
+metadata:
+name: nginx-service
+spec:
+type: NodePort
+selector:
+app: nginx
+ports:
+
+    port: 80 targetPort: 80 nodePort: 30080
+
+(6:20)
+3. Deployment Configuration (nginx-deploy.yml)
+
+This manifest handles scaling (3 replicas) and rolling updates. Initially, the image used is nginx:stable-alpine (9:50), which is later updated to nginx:1.21-alpine (13:13).
+yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+name: nginx-deploy
+spec:
+replicas: 3
+selector:
+matchLabels:
+app: nginx
+template:
+metadata:
+labels:
+app: nginx
+spec:
+containers:
+- name: nginx
+image: nginx:1.21-alpine
+ports:
+- containerPort: 80
+
+
+
+
+To enable and access the Rancher dashboard on your k3s cluster, you need to use Helm to deploy the Rancher management server. Since this is an additional component beyond the basic k3s setup covered in the video, follow these general steps:
+
+1. Install Helm (if not already installed):
+If you don't have Helm on your VM, run:
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+2. Install cert-manager:
+Rancher requires cert-manager to manage SSL/TLS certificates.
+
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo update
+    kubectl create namespace cert-manager
+    helm install cert-manager jetstack/cert-manager --namespace cert-manager --set installCRDs=true
+
+3. Deploy Rancher:
+
+    helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
+    kubectl create namespace cattle-system
+    helm install rancher rancher-latest/rancher --namespace cattle-system --set hostname= --set bootstrapPassword=admin
+
+4. Access via Browser:
+
+    Once the installation completes, verify the pods are running with kubectl -n cattle-system get pods.
+    Retrieve your initial login password: kubectl get secret --namespace cattle-system bootstrap-secret -o go-template='{{.data.bootstrapPassword|base64decode}}{{"\n"}}'
+    Open your web browser and navigate to https://. Note that because you are using self-signed certificates, your browser may show a security warning, which you will need to accept to proceed.
+
